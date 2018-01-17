@@ -1,0 +1,6 @@
+- lincg.py
+  -> Returning NaN when LCG fails
+- function_factory.py
+  -> Increasing number of probes to 100
+- grid_inducing_point_module.py
+  -> Modifying grid to match x bounds
