@@ -1,14 +1,17 @@
 import torch
 from gpytorch.kernels.kernel import Kernel
-from torch.autograd import Variable
 
 class SpectralGPKernel(Kernel):
 	def __init__(self, frequencies, density):
 		super(SpectralGPKernel, self).__init__()
-		s,_ = frequencies.size()
-		s2,_ = density.size()
-		if s != s:
+		s_freq = frequencies.size()[0]
+		s_dens = density.size()[0]
+		frequencies = frequencies.reshape(s_freq, 1)
+		density = density.reshape(s_dens, 1)
+
+		if frequencies.shape != density.shape:
 			raise RuntimeError('Dimension mismatch of frequencies and density vector!')
+
 		self.frequencies = frequencies
 		self.density = density
 		self.k = None
@@ -21,6 +24,11 @@ class SpectralGPKernel(Kernel):
 		return k
 
 	def forward(self, x1, x2):
+		if len(list(x1.shape)) == 1:
+			x1 = x1.unsqueeze(1)
+		if len(list(x2.shape)) == 1:
+			x2 = x2.unsqueeze(1)
+
 		n, d1 = x1.size()
 		m, d2 = x2.size()
 
@@ -33,13 +41,11 @@ class SpectralGPKernel(Kernel):
 			]))
 
 		Tau = (x1 - x2.t()).abs()
-		max_tau = int(Tau.max().data[0])
-		if self.k is None or (self.k.size()[0]-1) < max_tau:			# extending kernel values if needed
+		max_tau = int(Tau.max().item())
+		if self.k is None or (self.k.size()[0]-1) < max_tau:	# extending kernel values if needed
 			self.k = self.compute_kernel_values(max_tau)
 
-		Tau.data.resize_(n*m,1)
-		K = self.k[Tau.int().data.numpy().transpose().tolist()]
-		K.resize_(n,m)
-		K = Variable(K)
+		Tau.resize_(n*m,1)
+		K = self.k[Tau.int().data.numpy().transpose().tolist()].resize(n,m)
 
 		return K
